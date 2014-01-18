@@ -45,6 +45,7 @@ function ModuleServer(urlPrefix, load, getUrl) {
     (function() {
       var lab = window.$LAB;
       load = function(url, cb) {
+        console.log('LABjs loading url', url);
         lab.script(url).wait(cb);
       };
     })()
@@ -68,6 +69,9 @@ function ModuleServer(urlPrefix, load, getUrl) {
   Server.prototype.load = function(module, cb) {
     var self = this;
     module = 'module$' + module.replace(/\//g, '$');
+    //a module is already loaded when:
+    // - because this function explicitly (this.loaded) was called and `module` is loaded
+    // - `module` is loaded earlier as a dependency. ModuleServer.m[module] got set in the earlier js payload
     if (this.loaded[module] || ModuleServer.m[module]) {
       if (cb) {
         cb(ModuleServer.m[module]);
@@ -80,13 +84,17 @@ function ModuleServer(urlPrefix, load, getUrl) {
         userCb(ModuleServer.m[module]);
       }
     };
+    //if already requested, attach callback
     if (this.requested[module]) {
       this.requested[module].push(cb);
       return;
     }
+
     var before = this.requestedList.slice();
     this.requestedList.push(module);
-    var cbs = this.requested[module] = [cb];
+    var cbs = this.requested[module] = [cb]; //creating local reference to cbs for quicker lookup
+
+    //when the module and its dependecies are loaded, execute the callbacks
     load(getUrl(this.urlPrefix, module, before), function() {
       self.loaded[module] = true;
       self.requested[module] = null;

@@ -55,6 +55,7 @@ function run(err, moduleServer) {
 
   http.createServer(function (req, res) {
     var url = require('url').parse(req.url);
+    console.log('--------------------------\nurl.pathname', url.pathname);
     // Load static files for demo
     switch(url.pathname) {
       case "/demo.html":
@@ -95,10 +96,11 @@ function run(err, moduleServer) {
         });
         return;
     }
-    console.log('Path ' + url.pathname);
+
     if (ORIGINAL_SOURCE_PATH_PREFIX_REGEX.test(url.pathname)) {
       var filename = SOURCE_DIR + '/' + url.pathname
           .replace(ORIGINAL_SOURCE_PATH_PREFIX_REGEX, '');
+      console.log('Original source request for file',fileName);
       fs.readFile(filename, 'utf8', function(err, js) {
         if (err) {
           throw err;
@@ -131,6 +133,7 @@ function run(err, moduleServer) {
         }
       } else {
         if (isSourceMapRequest) {
+          console.log('source map request, returning',sourceMap);
           var map = JSON.stringify(sourceMap, null, ' ');
           res.writeHead(200, {
             'Content-Type': 'application/json',
@@ -140,6 +143,7 @@ function run(err, moduleServer) {
           res.end(map, 'utf8');
         } else {
           var mapUrl = SOURCEMAP_PREFIX + url.pathname;
+          console.log('some other request',mapUrl);
           res.writeHead(200, {
             'Content-Type': 'application/javascript',
             'Content-Length': length,
