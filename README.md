@@ -26,7 +26,7 @@ See [demo-server.js](module-server/blob/master/demo-server.js) for an example se
 
 ### Demo
 
-Run `node demo-server.js` then drag [clients/test/demo.html](module-server/blob/master/clients/test/demo.html) to a browser window.
+Run `node demo-server.js` then drag [clients/test/demo.html](module-server/blob/master/clients/test/demo.html) to a browser window, or load the client on `http://127.0.0.1:1337/demo.html`.
 
 ## Client
 

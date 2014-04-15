@@ -14,8 +14,23 @@
  * limitations under the License.
  */
 
+/*
+
+the module server serves js files; it uses a module graph which is loaded from the beginning.
+The actual module graph itself, is built by the closure compiler.
+The graph is used to build module list in memory
+
+When the server is created, it provides a function to load modules.
+An array of strings of $ separated module paths will cause the relevant modules to be loaded.
+They are concatenated into a single js file that contains the module and its dependencies.
+
+In case the a source map is requested, the function also returns the sourceMap as the last argument.
+
+*/
+
 var path = require('path');
 var fs = require('fs');
+var Graph = require('./module-graph');
 
 function JsModuleFile(pathPrefix, name, onSource, onSourceMap) {
   var self = this;
@@ -48,7 +63,7 @@ JsModuleFile.prototype.getMap = function() {
 };
 
 function makeServer(graph, modules) {
-  return function(moduleNames, excludeNames, onJs, options) {
+  return function loadModules(moduleNames, excludeNames, options, cb) {
     options = options || {};
     var debug = options.debug;
     var log = options.onLog || function() {};
@@ -57,7 +72,7 @@ function makeServer(graph, modules) {
     try {
       var names = graph.getModules(moduleNames, excludeNames);
     } catch(e) {
-      return onJs(e)
+      return cb(e);
     }
     log('Serving modules', names);
     var js = '';
@@ -82,8 +97,7 @@ function makeServer(graph, modules) {
           },
           map: map
         });
-        lineNumber = lineNumber + file.getNumberOfLines()
-          + 1  // The ModuleServer.m… line;
+        lineNumber = lineNumber + file.getNumberOfLines() + 1;  // The ModuleServer.m… line;
       }
     }
     var sourceMap = createSourceMap ? {
@@ -91,9 +105,9 @@ function makeServer(graph, modules) {
       file: "just-the-container.js",
       sections: sourceMapSections
     } : null;
-    onJs(null, js.length, js, sourceMap);
-  }
-};
+    cb(null, js.length, js, sourceMap);
+  };
+}
 
 /**
  * Make a module server that serves JS from memory and loads it from disk.
@@ -106,7 +120,7 @@ function makeServer(graph, modules) {
  * @return {*}
  */
 exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
-  require('./module-graph').fromFilename(graphFilename, function(err, graph) {
+  Graph.fromFilename(graphFilename, function(err, graph) {
     if (err) {
       return initCompleteCb(err);
     }
@@ -120,6 +134,9 @@ exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
     fn.NotFoundException = graph.NotFoundException;
 
     var loaded = 0;
+    //generic callback that is called once source or sourcemap is loaded
+    //if for each module both are loaded (length * 2), the module server is initialized
+    //and ready to load modules
     function onFile(err) {
       if (err) {
         return initCompleteCb(err);
@@ -129,4 +146,4 @@ exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
       }
     }
   });
-}
+};

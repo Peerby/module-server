@@ -14,6 +14,27 @@
  * limitations under the License.
  */
 
+/*
+
+This file should be included on the client when you want to load modules from the module server.
+
+`ModuleServer(<module server url>)` returns function `load` which is called with two params:
+- path to the module you want to load
+- callback, called once it's loaded (with the module as its only argument, no error handling)
+
+When ModuleServer goes to the module server and asks for the module,
+it also includes which modules it has requested before.
+The module server knows the dependency tree, therefore
+it is able to figure out what dependencies are still missing on the client.
+It sends the module back together with the missing dependencies.
+
+When the module has loaded, the module is ready to be executed,
+and one or more load() callbacks are executed.
+(in case the module was requested more than once before it loaded)
+
+*/
+
+
 /**
  * Creates a Module loader.
  * USAGE:
@@ -48,7 +69,7 @@ function ModuleServer(urlPrefix, load, getUrl) {
         console.log('LABjs loading url', url);
         lab.script(url).wait(cb);
       };
-    })()
+    })();
   }
 
   if (!getUrl) {
@@ -90,7 +111,7 @@ function ModuleServer(urlPrefix, load, getUrl) {
       return;
     }
 
-    var before = this.requestedList.slice();
+    var before = this.requestedList.slice(); //copy the array
     this.requestedList.push(module);
     var cbs = this.requested[module] = [cb]; //creating local reference to cbs for quicker lookup
 
@@ -108,11 +129,16 @@ function ModuleServer(urlPrefix, load, getUrl) {
   function loadModule(module, cb) {
     instance.load(module, cb);
   };
+  loadModule.instance = instance;
   return loadModule;
 }
 
 // Registry for loaded modules.
 ModuleServer.m = {};
+// I don't know why modules are stored globally in ModuleServer.m, but:
+// - $LAB loads a module (with its dependencies) in a single request
+// - the response contains js that sets itself (module+dependencies) on ModuleServer.m
+// Perhaps because of default behavior of $LAB, ModuleServer needs to be defined globally
 
 if (typeof exports != 'undefined') {
   exports.ModuleServer = ModuleServer;
