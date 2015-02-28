@@ -32,6 +32,14 @@ When the module has loaded, the module is ready to be executed,
 and one or more load() callbacks are executed.
 (in case the module was requested more than once before it loaded)
 
+There's a bit of magic happening with regards to `ModuleServer.m`:
+- after a module is loaded all success callbacks are called with the module's contents:
+  `cb(ModuleServer.m[module])`
+- however, ModuleServer.m is never set in this file
+- therefore, the dependencies that are fetched over the network must register themselves
+  on ModuleServer.m
+Q: why doesn't `ModuleServer` register the modules in `m`?
+
 */
 
 
@@ -41,11 +49,11 @@ and one or more load() callbacks are executed.
  *   window.loadModule = ModuleServer('http://url./of/your/module/server/');
  *   loadModule('your/module', function(yourModule) { … });
  * @param {string} urlPrefix URL prefix of your module server.
- * @param {function(string,Function)=} load OPTIONAL function to load JS
- *     from a given URL, that fires a callback when the JS loaded. If
+ * @param {function(string,Function)=} fetch OPTIONAL function to fetch JS
+ *     from a given URL, that fires a callback when the JS fetched. If
  *     you do not provide this function, you need to include $LAB.js in the
- *     current page. If you want to implement your own loader, make sure it
- *     supports executing JS in load order (ideally without blocking).
+ *     current page. If you want to implement your own fetcher, make sure it
+ *     supports executing JS in fetch order (ideally without blocking).
  * @param {Function=} getUrl OPTIONAL function to create a URL given the
  *     urlPrefix, the current module name and a list of modules that have
  *     already been requested. You will need to provide this if your server
@@ -55,17 +63,17 @@ and one or more load() callbacks are executed.
  *     callback that fires when the module loaded. It received the exports
  *     object of the module as its first param.
  */
-function ModuleServer(urlPrefix, load, getUrl) {
+function ModuleServer(urlPrefix, fetch, getUrl) {
   if (!urlPrefix) {
     urlPrefix = './';
   }
 
-  if (!load) {
+  if (!fetch) {
     // Provide a default load function. This function assumes that $LAB.js is
     // present in the current page.
     (function() {
       var lab = window.$LAB;
-      load = function(url, cb) {
+      fetch = function(url, cb) {
         console.log('LABjs loading url', url);
         lab.script(url).wait(cb);
       };
@@ -82,43 +90,61 @@ function ModuleServer(urlPrefix, load, getUrl) {
 
   var Server = function(urlPrefix) {
     this.urlPrefix = urlPrefix;
-    this.requested = {};
-    this.requestedList = [];
-    this.loaded = {};
+    this.requestedModules = []; //modules that have been requested
+    this.fetched = {}; //modules that have been successfully loaded
+    this.fetchCallbacks = {}; //module callbacks that need to be called once the module is fetched
   };
 
   Server.prototype.load = function(module, cb) {
     var self = this;
-    module = 'module$' + module.replace(/\//g, '$');
-    //a module is already loaded when:
-    // - because this function explicitly (this.loaded) was called and `module` is loaded
-    // - `module` is loaded earlier as a dependency. ModuleServer.m[module] got set in the earlier js payload
-    if (this.loaded[module] || ModuleServer.m[module]) {
+    module = 'module$' + module.replace(/\//g, '$'); // to create unambiguous query params: `/` -> `$`
+    //a module is already fetched in case:
+    // - `module` was explicitly fetched, stored by name in `this.fetched`
+    // - `module` was fetched as a dependency, stored in `ModuleServer.m`
+
+    //`m` not a property of this (`instance.load`) or `fetched` a property of `ModuleServer`, because:
+    //- fetched modules register themselves in `ModuleServer.m`
+    //- loaded modules don't have access to context of this (`instance.load`)
+
+    //Q: why keep track of `this.fetched` if it's a subset of `ModuleServer.m`?
+    if (this.fetched[module] || ModuleServer.m[module]) {
       if (cb) {
         cb(ModuleServer.m[module]);
       }
       return;
     }
+
+    //make sure there's always a callback, even if it does nothing
+    //if the user provided a callback, call it with the module that was requested
     var userCb = cb;
     cb = function() {
       if (userCb) {
         userCb(ModuleServer.m[module]);
       }
     };
-    //if already requested, attach callback
-    if (this.requested[module]) {
-      this.requested[module].push(cb);
+
+    //if the module is already requested, queue the callback
+    if (this.fetchCallbacks[module]) {
+      this.fetchCallbacks[module].push(cb);
       return;
     }
 
-    var before = this.requestedList.slice(); //copy the array
-    this.requestedList.push(module);
-    var cbs = this.requested[module] = [cb]; //creating local reference to cbs for quicker lookup
+    var before = this.requestedModules.slice(); //copy the array
+    this.requestedModules.push(module);
+    //Q: should this be moved to fetch callback?
+    //- module A and B, B has a dependency on A
+    //- A is requested slightly before B
+    //- A is registered as requested, therefore excluded when B is requested
+    //- B is fetched before A, callbacks are called but A is not yet fetched
+    //- error?
 
-    //when the module and its dependecies are loaded, execute the callbacks
-    load(getUrl(this.urlPrefix, module, before), function() {
-      self.loaded[module] = true;
-      self.requested[module] = null;
+    var cbs = this.fetchCallbacks[module] = [cb]; //creating local reference to cbs for quicker lookup
+
+    //when the module and its dependecies are fetched, execute the callbacks
+    fetch(getUrl(this.urlPrefix, module, before), function() { //Q: why no error handling?
+      self.fetched[module] = true;
+      self.fetchCallbacks[module] = null;
+
       for (var i = 0; i < cbs.length; i++) {
         cbs[i]();
       }
@@ -126,20 +152,21 @@ function ModuleServer(urlPrefix, load, getUrl) {
   };
 
   var instance = new Server(urlPrefix);
+  //to separate private/public props, create wrapper function so that `instance` isn't exposed
   function loadModule(module, cb) {
     instance.load(module, cb);
-  };
-  loadModule.instance = instance;
+  }
+//  loadModule.instance = instance; //it's unclear to me why you'd want to expose instance after just wrapping it
   return loadModule;
 }
 
-// Registry for loaded modules.
+// Registry for fetched modules.
 ModuleServer.m = {};
 // I don't know why modules are stored globally in ModuleServer.m, but:
 // - $LAB loads a module (with its dependencies) in a single request
 // - the response contains js that sets itself (module+dependencies) on ModuleServer.m
-// Perhaps because of default behavior of $LAB, ModuleServer needs to be defined globally
 
-if (typeof exports != 'undefined') {
+//in case this file is loaded as a commonJS module, export it
+if (typeof exports !== 'undefined') {
   exports.ModuleServer = ModuleServer;
 }
