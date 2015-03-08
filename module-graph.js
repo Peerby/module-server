@@ -37,8 +37,7 @@ exports.fromSerialization = function(modules) {
  * Make a ModuleGraph from a file as it is output by closure compiler
  * when passed the TODO compiler flag.
  * @param {string} filename Filename of the module graph file.
- * @apram {function(Error, ModuleGraph)}
- * @return {ModuleGraph}
+ * @param {function(Error, ModuleGraph)}
  */
 exports.fromFilename = function(filename, cb) {
   fs.readFile(filename, 'utf8', function(err, str) {
@@ -49,23 +48,14 @@ exports.fromFilename = function(filename, cb) {
   });
 };
 
-function Module(info) {
-  this.name = info.name;
-  this.inputs = info.inputs;
-  this.transitiveDeps = info['transitive-dependencies'].reverse();
-}
-
-Module.prototype.toString = function() {
-  return '<Module: ' + this.name + '>';
-};
-
 /**
  * A module graph class.
+ * Represents graph of dependencies
  * @constructor
  */
 function ModuleGraph(moduleData) {
   var self = this;
-  var modules = {};
+  var modules = {}; //hashmap of module names->modules
   var moduleNameList = [];
   moduleData.forEach(function(info) {
     var m = new Module(info);
@@ -77,12 +67,21 @@ function ModuleGraph(moduleData) {
    * Get a list of all module names.
    * @return {Array.<string>} List of module names.
    */
-  this.getAllModules = function() {
+  this.getAllModuleNames = function() {
     return moduleNameList;
   };
 
   /**
    * Get transitive dependencies for a given module
+   * Transitive dependencies are dependencies that a module has because
+   * its own dependencies depend on them, for example, in the case of
+   * A -> B -> C, C is a transitive dependency of A.
+   *
+   * Closure Compiler includes a module's direct dependencies in
+   * its transitive dependencies, so we could say that the in this case
+   * 'transitive dependencies' means 'all the dependencies a module needs,
+   * either directy or transitively'.
+   *
    * @param {string} name Name of the module.
    * @return {Array.<string>} List of module names.
    */
@@ -116,35 +115,55 @@ function ModuleGraph(moduleData) {
    * Gets the requested module names and their transitive deps minus the
    * transitive deps (and the) of the optional excluded names.
    * @param {Array.<string>} moduleNames List of module names.
-   * @apram {Array.<string>} opt_excludeNames List of module names to exclude.
+   * @apram {Array.<string>} excludeModuleNames List of module names to exclude.
    * @return {Array.<string>} List of module names.
    */
-  this.getModules = function(moduleNames, opt_excludeNames) {
-    var list = [];
-    var seen = {};
-    var exclude = {};
+  this.getModules = function(moduleNames, excludeModuleNames) {
+    var list = []; //modules that 
+    var seen = {}; //modules that have already been added to list
+    var exclude = {}; //modules that should not be returned
 
-    if (opt_excludeNames) {
-      opt_excludeNames.forEach(function(name) {
-        exclude[name] = true;
+    //determine which modules should be excluded, stored in `exclude`
+    if (excludeModuleNames) {
+      excludeModuleNames.forEach(function(name) {
+        excludeModule(name);
         var m = getModule(name);
-        m.transitiveDeps.forEach(function(name) {
-          exclude[name] = true;
-        });
+        m.transitiveDeps.forEach(excludeModule);
       });
     }
 
-    function addModule(name) {
-      if (!seen[name] && !exclude[name]) {
-        seen[name] = true;
-        list.push(name)
-      }
-    }
+    //determine which modules should be included, stored in list
     moduleNames.forEach(function(name) {
       var m = getModule(name);
       m.transitiveDeps.forEach(addModule);
       addModule(m.name);
     });
     return list;
+
+    function addModule(name) {
+      //only add modules that are not yet added (and should be)
+      if (!seen[name] && !exclude[name]) {
+        seen[name] = true;
+        list.push(name);
+      }
+    }
+
+    function excludeModule(name) {
+      exclude[name] = true;
+    }
   };
 }
+
+/**
+ * A module class
+ * @constructor
+ */
+function Module(info) {
+  this.name = info.name;
+  this.inputs = info.inputs;
+  this.transitiveDeps = info['transitive-dependencies'].reverse(); //why is the reverse used?
+}
+
+Module.prototype.toString = function() {
+  return '<Module: ' + this.name + '>';
+};

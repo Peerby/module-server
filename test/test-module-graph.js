@@ -26,8 +26,8 @@ test('instantiation', function(t) {
     'transitive-dependencies': deps
   }];
   var graph = moduleGraph.fromSerialization(data);
-  t.is(graph.getAllModules().length, 1);
-  t.is(graph.getAllModules()[0], name);
+  t.is(graph.getAllModuleNames().length, 1);
+  t.is(graph.getAllModuleNames()[0], name);
   t.is(graph.getTransitiveDependencies(name), deps);
   t.end();
 });
@@ -37,8 +37,8 @@ test('graph', function(t) {
   var data = getJson(filename);
   moduleGraph.fromFilename(filename, function(err, graph) {
     t.is(err, null);
-    t.is(graph.getAllModules().length, 7);
-    t.is(graph.getAllModules()[0], data[0].name);
+    t.is(graph.getAllModuleNames().length, 7);
+    t.is(graph.getAllModuleNames()[0], data[0].name);
 
     var modules = graph.getModules(['module$app']);
     t.equivalent(modules, ['root', 'module$module$bar',

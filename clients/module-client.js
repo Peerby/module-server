@@ -128,6 +128,8 @@ function ModuleServer(urlPrefix, fetch, getUrl) {
       this.fetchCallbacks[module].push(cb);
       return;
     }
+    //store callback in array, to be added to when module is requested again before it's fetched
+    this.fetchCallbacks[module] = [cb];
 
     var before = this.requestedModules.slice(); //copy the array
     this.requestedModules.push(module);
@@ -138,10 +140,9 @@ function ModuleServer(urlPrefix, fetch, getUrl) {
     //- B is fetched before A, callbacks are called but A is not yet fetched
     //- error?
 
-    var cbs = this.fetchCallbacks[module] = [cb]; //creating local reference to cbs for quicker lookup
-
     //when the module and its dependecies are fetched, execute the callbacks
     fetch(getUrl(this.urlPrefix, module, before), function() { //Q: why no error handling?
+      var cbs = self.fetchCallbacks[module];
       self.fetched[module] = true;
       self.fetchCallbacks[module] = null;
 

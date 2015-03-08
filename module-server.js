@@ -50,7 +50,7 @@ exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
       return initCompleteCb(err);
     }
     var modules = {};
-    var allModules = graph.getAllModules();
+    var allModules = graph.getAllModuleNames();
     allModules.forEach(function(name) {
       modules[name] = new JsModuleFile(pathPrefix, name, onFile, onFile);
     });
@@ -137,13 +137,13 @@ function makeServer(graph, modules) {
     var createSourceMap = !!options.createSourceMap;
     var names;
 
-    log('Module request', moduleNames, excludeNames);
+    log('Requesting', moduleNames, 'without', excludeNames);
     try {
       names = graph.getModules(moduleNames, excludeNames);
     } catch(e) {
       return cb(e);
     }
-    log('Serving modules', names);
+    log('Thus, serving', names);
     var js = '';
     var lineNumber = 1;
     var sourceMapSections = createSourceMap ? [] : null;
@@ -171,7 +171,7 @@ function makeServer(graph, modules) {
     }
     var sourceMap = createSourceMap ? {
       version: 3,
-      file: "just-the-container.js",
+      file: "just-the-container.js", //what does this do?
       sections: sourceMapSections
     } : null;
     cb(null, js.length, js, sourceMap);
