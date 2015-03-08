@@ -16,9 +16,11 @@
 
 /*
 
-the module server serves js files; it uses a module graph which is loaded from the beginning.
-The actual module graph itself, is built by the closure compiler.
-The graph is used to build module list in memory
+the module server serves js files; 
+
+It uses a module graph which is loaded from the beginning.
+The module graph is built by the closure compiler and
+used to build module list in memory.
 
 When the server is created, it provides a function to load modules.
 An array of strings of $ separated module paths will cause the relevant modules to be loaded.
@@ -32,6 +34,14 @@ var path = require('path');
 var fs = require('fs');
 var Graph = require('./module-graph');
 
+/**
+ * Contains a the js source and source map
+ * @param {String} pathPrefix: where the closure-compiled modules can be found
+ * @param {String} name: name of the module ($-separated)
+ * @param {Function} onSource: callback for source
+ * @param {Function} onSourceMap: callback for source map
+ * @return {*}
+ */
 function JsModuleFile(pathPrefix, name, onSource, onSourceMap) {
   var self = this;
   self.filename = path.join(pathPrefix, name + '.js');
@@ -62,15 +72,35 @@ JsModuleFile.prototype.getMap = function() {
   return JSON.parse(this.map);
 };
 
+/**
+ * Creates a module server based on:
+ * @param {Object} graph ModuleGraph instance
+ * @param {Object} modules Object hashmap of module names and JsModuleFile instances
+ *
+ * Returns a function that can load modules and their dependencies
+ * They are concatenated into a single js file that contains the module and its dependencies.
+ * In case the a source map is requested, the function also returns the sourceMap as the last argument.
+ *
+ * @param {Array} moduleNames, required module; each moduleName is a $-separated path to the file
+ * @param {Array} excludeNames, modules that are not needed; each moduleName is a $-separated path to the file
+ * @param {Object} options
+ * - @prop {Bool} debug: add debugging info
+ * - @prop {Bool} createSourceMap: add source map
+ * - @prop {Function} onLog: logging function
+ * @param {Function} cb, callback
+ * @return {*}
+ */
 function makeServer(graph, modules) {
-  return function loadModules(moduleNames, excludeNames, options, cb) {
+  return function moduleServer(moduleNames, excludeNames, options, cb) {
     options = options || {};
     var debug = options.debug;
     var log = options.onLog || function() {};
     var createSourceMap = !!options.createSourceMap;
+    var names;
+
     log('Module request', moduleNames, excludeNames);
     try {
-      var names = graph.getModules(moduleNames, excludeNames);
+      names = graph.getModules(moduleNames, excludeNames);
     } catch(e) {
       return cb(e);
     }
@@ -130,19 +160,19 @@ exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
       modules[name] = new JsModuleFile(pathPrefix, name, onFile, onFile);
     });
 
-    var fn = makeServer(graph, modules);
-    fn.NotFoundException = graph.NotFoundException;
+    var moduleServer = makeServer(graph, modules);
+    moduleServer.NotFoundException = graph.NotFoundException;
 
     var loaded = 0;
     //generic callback that is called once source or sourcemap is loaded
-    //if for each module both are loaded (length * 2), the module server is initialized
-    //and ready to load modules
     function onFile(err) {
       if (err) {
         return initCompleteCb(err);
       }
-      if (++loaded == allModules.length * 2) {
-        initCompleteCb(null, fn);
+      if (++loaded === allModules.length * 2) {
+        //if for each module both source and source map files are loaded
+        //(length * 2), the module server is initialized
+        initCompleteCb(null, moduleServer);
       }
     }
   });

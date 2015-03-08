@@ -36,64 +36,66 @@ function run(err, moduleServer) {
     var url = require('url').parse(req.url);
     console.log('--------------------------\nurl.pathname', url.pathname);
     // Load static files for demo
-    switch(url.pathname) {
-      case "/demo.html":
+    var staticPaths = {
+      '/demo.html': function () {
         fs.readFile(__dirname + '/clients/test/demo.html', 'utf8', function (err, html) {
           if(err) {
             throw err;
-          } else {
-            res.writeHead(200, {
-              'Content-Type': 'text/html',
-              'Content-Length': html.length
-            });
-            res.end(html, 'utf8');
           }
+          res.writeHead(200, {
+            'Content-Type': 'text/html',
+            'Content-Length': html.length
+          });
+          res.end(html, 'utf8');
         });
         return;
-      case "/third-party/LABjs/LAB.src.js":
+      },
+      '/third-party/LABjs/LAB.src.js': function () {
         fs.readFile(__dirname + '/clients/third-party/LABjs/LAB.src.js', 'utf8', function (err, js) {
           if(err) {
             throw err;
-          } else {
-            res.writeHead(200, {
-              'Content-Type': 'application/javascript',
-            });
-            res.end(js, 'utf8');
           }
+          res.writeHead(200, {
+            'Content-Type': 'application/javascript',
+          });
+          res.end(js, 'utf8');
         });
-        return; 
-      case "/module-client.js":
+      },
+      '/module-client.js': function () {
         fs.readFile(__dirname + '/clients/module-client.js', 'utf8', function (err, js) {
           if(err) {
             throw err;
-          } else {
-            res.writeHead(200, {
-              'Content-Type': 'application/javascript',
-            });
-            res.end(js, 'utf8');
           }
+          res.writeHead(200, {
+            'Content-Type': 'application/javascript',
+          });
+          res.end(js, 'utf8');
         });
-        return;
+      }
+    };
+
+    var staticPath = staticPaths[url.pathname];
+    if (staticPath) {
+      return staticPath();
     }
 
     //return original source when browser requests it (through source mapping)
-    if (config.ORIGINAL_SOURCE_PATH_PREFIX_REGEX.test(url.pathname)) {
+    var isOriginalSourceRequest = config.ORIGINAL_SOURCE_PATH_PREFIX_REGEX.test(url.pathname);
+    if (isOriginalSourceRequest) {
       var filename = config.SOURCE_DIR + '/' + url.pathname
           .replace(config.ORIGINAL_SOURCE_PATH_PREFIX_REGEX, '');
-      console.log('Original source request for file',fileName);
-      fs.readFile(filename, 'utf8', function(err, js) {
+      console.log('Original source request for file', filename);
+      return fs.readFile(filename, 'utf8', function(err, js) {
         if (err) {
           throw err;
-        } else {
-          res.writeHead(200, {
-            'Content-Type': 'application/javascript',
-            'Content-Length': js.length,
-            'Pragma': 'no-cache'
-          });
-          res.end(js, 'utf8');
         }
+        res.writeHead(200, {
+          'Content-Type': 'application/javascript',
+          'Content-Length': js.length,
+          'Pragma': 'no-cache'
+        });
+        res.end(js, 'utf8');
       });
-      return;
     }
 
     //determine if it's a request for a source map
