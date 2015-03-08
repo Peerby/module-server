@@ -35,6 +35,45 @@ var fs = require('fs');
 var Graph = require('./module-graph');
 
 /**
+ * Make a module server that serves JS from memory and loads it from disk.
+ * @param {string} pathPrefix Directory where JS files can be found. JS files
+ *     are expected to be pathPrefix + name + '.js'
+ * @param {string} graphFilename Filename of a module graph serialization.
+ * @param {function(Error,function(Array.<string>,Array.<string>,
+ *     function(Error,number,string),Object))} initCompleteCb Callback to be
+ *     fired when the server is ready.
+ * @return {*}
+ */
+exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
+  Graph.fromFilename(graphFilename, function(err, graph) {
+    if (err) {
+      return initCompleteCb(err);
+    }
+    var modules = {};
+    var allModules = graph.getAllModules();
+    allModules.forEach(function(name) {
+      modules[name] = new JsModuleFile(pathPrefix, name, onFile, onFile);
+    });
+
+    var moduleServer = makeServer(graph, modules);
+    moduleServer.NotFoundException = graph.NotFoundException;
+
+    var loaded = 0;
+    //generic callback that is called once source or sourcemap is loaded
+    function onFile(err) {
+      if (err) {
+        return initCompleteCb(err);
+      }
+      if (++loaded === allModules.length * 2) {
+        //if for each module both source and source map files are loaded
+        //(length * 2), the module server is initialized
+        initCompleteCb(null, moduleServer);
+      }
+    }
+  });
+};
+
+/**
  * Contains a the js source and source map
  * @param {String} pathPrefix: where the closure-compiled modules can be found
  * @param {String} name: name of the module ($-separated)
@@ -138,42 +177,3 @@ function makeServer(graph, modules) {
     cb(null, js.length, js, sourceMap);
   };
 }
-
-/**
- * Make a module server that serves JS from memory and loads it from disk.
- * @param {string} pathPrefix Directory where JS files can be found. JS files
- *     are expected to be pathPrefix + name + '.js'
- * @param {string} graphFilename Filename of a module graph serialization.
- * @param {function(Error,function(Array.<string>,Array.<string>,
- *     function(Error,number,string),Object))} initCompleteCb Callback to be
- *     fired when the server is ready.
- * @return {*}
- */
-exports.from = function(pathPrefix, graphFilename, initCompleteCb) {
-  Graph.fromFilename(graphFilename, function(err, graph) {
-    if (err) {
-      return initCompleteCb(err);
-    }
-    var modules = {};
-    var allModules = graph.getAllModules();
-    allModules.forEach(function(name) {
-      modules[name] = new JsModuleFile(pathPrefix, name, onFile, onFile);
-    });
-
-    var moduleServer = makeServer(graph, modules);
-    moduleServer.NotFoundException = graph.NotFoundException;
-
-    var loaded = 0;
-    //generic callback that is called once source or sourcemap is loaded
-    function onFile(err) {
-      if (err) {
-        return initCompleteCb(err);
-      }
-      if (++loaded === allModules.length * 2) {
-        //if for each module both source and source map files are loaded
-        //(length * 2), the module server is initialized
-        initCompleteCb(null, moduleServer);
-      }
-    }
-  });
-};
