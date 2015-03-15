@@ -72,9 +72,13 @@ function compile(userArgs, cb) {
 var idle = true;
 var count = 0;
 function compileIfIdle(path, args) {
-  if (count++ == 0) {
-    // TODO remove this chdir.
-    process.chdir(path);
+  try {
+    if (count++ == 0) {
+      // TODO remove this chdir.
+      process.chdir(path);
+    }
+  } catch (e) {
+    return console.log('could not load path', path);
   }
   if (idle) {
     idle = false;
