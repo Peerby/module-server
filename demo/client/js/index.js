@@ -1,4 +1,14 @@
-var a = require('third-party/underscore/underscore')._;
-var page1 = require('page1');
+require('third-party/jquery/jquery');
 
-a.times(2, page1);
+var $content = $('#content');
+
+function loadPage(name) {
+    return function() {
+        loadModule(name, function (page) {
+            page.render($content);
+        });
+    };
+}
+
+$('#page1').click(loadPage('page1'));
+$('#page2').click(loadPage('page2'));
