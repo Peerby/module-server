@@ -8,12 +8,6 @@ module-client
 - only files that are not yet loaded in the client are requested from the backend
 
 
-module-compiler
-=========
-
-- running closure compiler to minify js, create source maps and dependency graph
-
-
 server
 =========
 
@@ -38,6 +32,13 @@ module-graph
 - interprets closure-compiled dependency graph
 - returns delta between required modules and excluded modules and their
   (transitive) dependencies
+
+
+module-compiler
+=========
+
+- running closure compiler to minify js, create source maps and dependency graph
+
 
 
 general
