@@ -5,6 +5,10 @@
     "type":"Apache 2.0",
     "url":"http://code.google.com/legal/individual-cla-v1.0.html"
   },
+  "dependencies": {
+    "express": "4.12.3",
+    "debug": "2.1.3"
+  },
   "devDependencies":{
     "tag":"latest"
   },

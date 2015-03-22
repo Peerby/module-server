@@ -23,29 +23,9 @@
 
 */
 
-
-////////////////////
-//code that uses http-server
-
-var express = require('express');
-
-var app = express();
-
-app.set('port', 1337);
-
-console.log('Module server running at http://127.0.0.1:1337/');
-
-var httpServer = require('httpServer')({
-  hi: 1
-});
-
-app.use(httpServer);
-
-///////////////////
-//http-server
+var debug = require('debug')('module-server');
 var fs = require('fs');
 
-var config = require('./config');
 var ModuleServer = require('./module-server');
 
 module.exports = function httpServer(options) {
@@ -53,21 +33,29 @@ module.exports = function httpServer(options) {
   var loadJsForPath;
   var moduleServer;
 
-  var config = config || {};
-  config.buildPath = config.SOURCE_DIR + '/../build';
-  config.graphPath = config.SOURCE_DIR + '/module-graph.json';
-
-  ModuleServer.from(config.buildPath, config.graphPath, function (err, _moduleServer) {
+  options = options || {};
+  var config = {
+    fs: {
+      sourceDir: __dirname + (options.sourceDir || '/test/fixtures/sample-module'),
+      buildDir: __dirname + (options.buildDir || '/test/fixtures/build'),
+      moduleGraphFile: __dirname + (options.moduleGraphFile || '/test/fixtures/sample-module/module-graph.json'),
+    },
+    urls: {
+      sourceMapPrefix: '/_sourcemap',
+      sourceMapPrefixRegex: /^\/_sourcemap\//,
+      originalPrefix: 'http://127.0.0.1:1337/_js',
+      originalPrefixRegex: /^\/_js\//,
+    }
+  };
+  debug('config', config);
+  ModuleServer.from(config.fs.buildDir, config.fs.moduleGraphFile, function (err, _moduleServer) {
     if (err) {
       throw err;
     }
     moduleServer = _moduleServer;
-    loadJsForPath = jsPathLoader(moduleServer);
+    loadJsForPath = jsPathLoader(moduleServer, config);
   });
 
-  staticServer.use('/demo.html', '/clients/test/demo.html', {
-    'Content-Type': 'text/html'
-  });
   staticServer.use('/third-party/LABjs/LAB.src.js', '/clients/third-party/LABjs/LAB.src.js', {
     'Content-Type': 'application/javascript'
   });
@@ -91,10 +79,10 @@ module.exports = function httpServer(options) {
     }
 
     //return original source when browser requests it (through source mapping)
-    var isOriginalSourceRequest = config.ORIGINAL_SOURCE_PATH_PREFIX_REGEX.test(url.pathname);
+    var isOriginalSourceRequest = config.urls.originalPrefixRegex.test(url.pathname);
     if (isOriginalSourceRequest) {
-      var filename = config.SOURCE_DIR + '/' + url.pathname
-          .replace(config.ORIGINAL_SOURCE_PATH_PREFIX_REGEX, '');
+      var filename = config.fs.sourceDir + '/' + url.pathname
+          .replace(config.urls.originalPrefixRegex, '');
       console.log('Original source request for file', filename);
       return fs.readFile(filename, 'utf8', function(err, js) {
         if (err) {
@@ -111,14 +99,15 @@ module.exports = function httpServer(options) {
 
     //determine if it's a request for a source map
     var isSourceMapRequest = false;
-    if (config.SOURCEMAP_PATH_PREFIX_REGEX.test(url.pathname)) {
+    if (config.urls.sourceMapPrefixRegex.test(url.pathname)) {
       isSourceMapRequest = true;
-      url.pathname = url.pathname.replace(config.SOURCEMAP_PATH_PREFIX_REGEX, '/');
+      url.pathname = url.pathname.replace(config.urls.sourceMapPrefixRegex, '/');
     }
 
     //retrieve module and its dependencies and return in single response
-    loadJsForPath(url.pathname, isSourceMapRequest, function(err, length, js,
-        sourceMap) {
+    return loadJsForPath(url.pathname, isSourceMapRequest, serveJs);
+
+    function serveJs(err, length, js, sourceMap) {
       if (err) {
         console.log('Error', err);
         if (err.statusCode) {
@@ -143,7 +132,7 @@ module.exports = function httpServer(options) {
         return;
       }
 
-      var mapUrl = config.SOURCEMAP_PREFIX + url.pathname;
+      var mapUrl = config.urls.sourceMapPrefix + url.pathname;
       console.log('module request', mapUrl);
       res.writeHead(200, {
         'Content-Type': 'application/javascript',
@@ -152,11 +141,11 @@ module.exports = function httpServer(options) {
         'X-SourceMap': mapUrl
       });
       res.end(js, 'utf8');
-    });
+    }
   };
 };
 
-function jsPathLoader (moduleServer) {
+function jsPathLoader (moduleServer, config) {
   //loads module and its dependencies
   //this should be part of module-server because it's not application specific
   return function loadJsForPath (path, isSourceMapRequest, cb) {
@@ -183,7 +172,7 @@ function jsPathLoader (moduleServer) {
     //load modules that are requested by client and call cb
     moduleServer(modules, exclude, {
       createSourceMap: isSourceMapRequest,
-      sourceMapSourceRootUrlPrefix: config.ORIGINAL_SOURCE_PATH_PREFIX,
+      sourceMapSourceRootUrlPrefix: config.urls.originalPrefix,
       debug: true,
       onLog: function() {
         console.log(arguments);
@@ -206,7 +195,6 @@ function createStaticServer () {
         if(err) {
           return next(err);
         }
-        headers['Content-Length'] = file.length;
         res.writeHead(200, headers);
         res.end(file, 'utf8');
       });
