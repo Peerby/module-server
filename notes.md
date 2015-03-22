@@ -65,6 +65,8 @@ general
 TODO
 ==========
 
+- source maps are broken
+
 - to make this project a drop-in solution, parts of demo-server should be included 
   in a library, resulting in two files with different responsibilities:
   - module-server.js: general serving of module-server files, that would be required 
@@ -75,6 +77,10 @@ TODO
 - serve a minified module-client
 
 - write express integration
+  - better error handling
+  - better configurable
+  - clean up code
+  - supports url prefixing for namespacing module-server
 
 - add support for `module.exports` (now only `exports`)
 

@@ -66,35 +66,25 @@ module.exports = function httpServer(options) {
   //return middleware
   return function (req, res, next) {
     if (!moduleServer) {
+      debug('module server is not loaded yet');
       return next('module server not loaded yet');
     }
 
     var url = require('url').parse(req.url);
-    console.log('--------------------------\nurl.pathname', url.pathname);
+    debug('\nincoming request', decodeURIComponent(url.pathname));
     // Load static files for demo
 
     var staticPath = staticServer.isStatic(url.pathname);
     if (staticPath) {
+      debug('serving static file');
       return staticPath(req, res, next);
     }
 
     //return original source when browser requests it (through source mapping)
-    var isOriginalSourceRequest = config.urls.originalPrefixRegex.test(url.pathname);
-    if (isOriginalSourceRequest) {
-      var filename = config.fs.sourceDir + '/' + url.pathname
-          .replace(config.urls.originalPrefixRegex, '');
-      console.log('Original source request for file', filename);
-      return fs.readFile(filename, 'utf8', function(err, js) {
-        if (err) {
-          return next(err);
-        }
-        res.writeHead(200, {
-          'Content-Type': 'application/javascript',
-          'Content-Length': js.length,
-          'Pragma': 'no-cache'
-        });
-        res.end(js, 'utf8');
-      });
+    var originalSourceRequest = originalPath(url.pathname, config);
+    if (originalSourceRequest) {
+      debug('serving original source file');
+      return originalSourceRequest(req, res, next);
     }
 
     //determine if it's a request for a source map
@@ -109,7 +99,7 @@ module.exports = function httpServer(options) {
 
     function serveJs(err, length, js, sourceMap) {
       if (err) {
-        console.log('Error', err);
+        debug('error serving modules', err);
         if (err.statusCode) {
           res.writeHead(err.statusCode, {'Content-Type': 'text/plain'});
           res.end(err.message);
@@ -121,7 +111,7 @@ module.exports = function httpServer(options) {
       }
 
       if (isSourceMapRequest) {
-        console.log('source map request, returning',sourceMap);
+        debug('serving source map');
         var map = JSON.stringify(sourceMap, null, ' ');
         res.writeHead(200, {
           'Content-Type': 'application/json',
@@ -133,7 +123,7 @@ module.exports = function httpServer(options) {
       }
 
       var mapUrl = config.urls.sourceMapPrefix + url.pathname;
-      console.log('module request', mapUrl);
+      debug('serving module(s)');
       res.writeHead(200, {
         'Content-Type': 'application/javascript',
         'Content-Length': length,
@@ -164,7 +154,8 @@ function jsPathLoader (moduleServer, config) {
       sourceMapSourceRootUrlPrefix: config.urls.originalPrefix,
       debug: true,
       onLog: function() {
-        console.log(arguments);
+        var args = Array.prototype.slice.call(arguments);
+        debug(args.join(' '));
       }
     }, cb);
   };
@@ -196,4 +187,33 @@ function createStaticServer () {
       return staticPath;
     }
   }
+}
+
+function originalPath (urlPath, config) {
+  if (!config.urls.originalPrefixRegex.test(urlPath)) {
+    return;
+  }
+
+  return function (req, res, next) {
+    var filename = config.fs.sourceDir + '/' + urlPath.replace(config.urls.originalPrefixRegex, '');
+    return fs.readFile(filename, 'utf8', function(err, js) {
+      if (err) {
+        debug('error serving original source file', err);
+        if (err.statusCode) {
+          res.writeHead(err.statusCode, {'Content-Type': 'text/plain'});
+          res.end(err.message);
+        } else {
+          res.writeHead(500, {'Content-Type': 'text/plain'});
+          res.end('Internal server error');
+        }
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript',
+        'Content-Length': js.length,
+        'Pragma': 'no-cache'
+      });
+      res.end(js, 'utf8');
+    });
+  };
 }
