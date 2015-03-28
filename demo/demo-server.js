@@ -150,21 +150,9 @@ function run(err, moduleServer) {
     path = path.replace(/^\//, '');
     var parts = path.split(/\//);
     var modules = decodeURIComponent(parts.shift()).split(/,/);
-    
-    //an options object is built so that exm property can be checked for, however:
-    //don't know where .exm comes from because it's not present anywhere else in the project
-    //perhaps it serves a purpose not demonstrated in this demo
-    //`exclude` is therefore always null
-    //logically however it should be part of the demo because the whole point
-    //is that it doesn't load any dependencies that are already loaded on the client
-    var options = {};
-    parts.forEach(function(part) {
-      var pair = part.split(/=/);
-      options[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
-    });
     var exclude = null;
-    if(options.exm) {
-      exclude = options.exm.split(/,/);
+    if (parts.length) {
+      exclude = decodeURIComponent(parts.shift()).split(/,/);
     }
 
     //load modules that are requested by client and call cb

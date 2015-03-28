@@ -34,6 +34,15 @@ module.exports = function httpServer(options) {
   var moduleServer;
 
   options = options || {};
+  options.baseUrl = options.baseUrl || '';
+  if (options.baseUrl) {
+    if(options.baseUrl[0] !== '/') { //start with /
+      options.baseUrl = '/' + options.baseUrl;
+    }
+    if(options.baseUrl.slice(-1) === '/') { //end without /
+      options.baseUrl = options.baseUrl.slice(0, -1);
+    }
+  }
   var config = {
     fs: {
       sourceDir: __dirname + (options.sourceDir || '/test/fixtures/sample-module'),
@@ -41,12 +50,14 @@ module.exports = function httpServer(options) {
       moduleGraphFile: __dirname + (options.moduleGraphFile || '/test/fixtures/sample-module/module-graph.json'),
     },
     urls: {
-      sourceMapPrefix: '/_sourcemap',
-      sourceMapPrefixRegex: /^\/_sourcemap\//,
-      originalPrefix: 'http://127.0.0.1:1337/_js',
-      originalPrefixRegex: /^\/_js\//,
+      base: options.baseUrl,
+      sourceMapPrefix: options.baseUrl + '/_sourcemap',
+      sourceMapPrefixRegex: getUrlRegExp(options.baseUrl + '/_sourcemap/'),
+      originalPrefix: options.baseUrl + '/_js',
+      originalPrefixRegex: getUrlRegExp(options.baseUrl + '/_js/')
     }
   };
+
   debug('config', config);
   ModuleServer.from(config.fs.buildDir, config.fs.moduleGraphFile, function (err, _moduleServer) {
     if (err) {
@@ -138,9 +149,14 @@ module.exports = function httpServer(options) {
 function jsPathLoader (moduleServer, config) {
   //loads module and its dependencies
   //this should be part of module-server because it's not application specific
+  var baseUrl = config.urls.base;
+  if (baseUrl.slice(-1) !== '/') {
+    baseUrl += '/';
+  }
+  var basePathRegExp = getUrlRegExp(baseUrl);
 
   return function loadJsForPath (path, isSourceMapRequest, cb) {
-    path = path.replace(/^\//, '');
+    path = path.replace(basePathRegExp, '');
     var parts = path.split(/\//);
     var modules = decodeURIComponent(parts.shift()).split(/,/);
     var exclude = null;
@@ -216,4 +232,12 @@ function originalPath (urlPath, config) {
       res.end(js, 'utf8');
     });
   };
+}
+
+function getUrlRegExp(url) {
+  if (url[0] !== '/') {
+    url = '/' + url;
+  }
+  url = '^' + url;
+  return new RegExp(url);
 }

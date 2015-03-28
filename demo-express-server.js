@@ -4,7 +4,7 @@
 var express = require('express');
 var fs = require('fs');
 var httpServer = require('./http-server')({
-  hi: 1
+  // baseUrl: '/ms'
 });
 
 var app = express();
