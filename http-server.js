@@ -51,10 +51,11 @@ module.exports = function httpServer(options) {
     },
     urls: {
       base: options.baseUrl,
+      baseRegex: getUrlRegex(options.baseUrl + '/'),
       sourceMapPrefix: options.baseUrl + '/_sourcemap',
-      sourceMapPrefixRegex: getUrlRegExp(options.baseUrl + '/_sourcemap/'),
+      sourceMapPrefixRegex: getUrlRegex(options.baseUrl + '/_sourcemap/'),
       originalPrefix: options.baseUrl + '/_js',
-      originalPrefixRegex: getUrlRegExp(options.baseUrl + '/_js/')
+      originalPrefixRegex: getUrlRegex(options.baseUrl + '/_js/')
     }
   };
 
@@ -84,6 +85,12 @@ module.exports = function httpServer(options) {
     var url = require('url').parse(req.url);
     debug('\nincoming request', decodeURIComponent(url.pathname));
     // Load static files for demo
+
+    if (!url.pathname.match(config.urls.baseRegex)) {
+      debug('does not match ' + config.urls.baseRegex);
+      res.writeHead(404, {'Content-Type': 'text/plain'});
+      return res.end('File not found');
+    }
 
     var staticPath = staticServer.isStatic(url.pathname);
     if (staticPath) {
@@ -149,14 +156,9 @@ module.exports = function httpServer(options) {
 function jsPathLoader (moduleServer, config) {
   //loads module and its dependencies
   //this should be part of module-server because it's not application specific
-  var baseUrl = config.urls.base;
-  if (baseUrl.slice(-1) !== '/') {
-    baseUrl += '/';
-  }
-  var basePathRegExp = getUrlRegExp(baseUrl);
 
   return function loadJsForPath (path, isSourceMapRequest, cb) {
-    path = path.replace(basePathRegExp, '');
+    path = path.replace(config.urls.baseRegex, '');
     var parts = path.split(/\//);
     var modules = decodeURIComponent(parts.shift()).split(/,/);
     var exclude = null;
@@ -234,10 +236,11 @@ function originalPath (urlPath, config) {
   };
 }
 
-function getUrlRegExp(url) {
+function getUrlRegex(url) {
   if (url[0] !== '/') {
     url = '/' + url;
   }
   url = '^' + url;
   return new RegExp(url);
 }
+
