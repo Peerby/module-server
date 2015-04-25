@@ -29,7 +29,7 @@ var fs = require('fs');
 var ModuleServer = require('./module-server');
 
 module.exports = function httpServer(options) {
-  var staticServer = createStaticServer();
+  var staticServer;
   var loadJsForPath;
   var moduleServer;
 
@@ -68,6 +68,7 @@ module.exports = function httpServer(options) {
     loadJsForPath = jsPathLoader(moduleServer, config);
   });
 
+  staticServer = createStaticServer(options.baseUrl);
   staticServer.use('/third-party/LABjs/LAB.src.js', '/clients/third-party/LABjs/LAB.src.js', {
     'Content-Type': 'application/javascript'
   });
@@ -179,7 +180,7 @@ function jsPathLoader (moduleServer, config) {
   };
 }
 
-function createStaticServer () {
+function createStaticServer (baseUrl) {
   var staticPaths = {};
 
   return {
@@ -188,7 +189,7 @@ function createStaticServer () {
   };
 
   function loadStatic (urlPath, filePath, headers) {
-    staticPaths[urlPath] = function (req, res, next) {
+    staticPaths[baseUrl + urlPath] = function (req, res, next) {
       fs.readFile(__dirname + filePath, 'utf8', function (err, file) {
         if(err) {
           return next(err);

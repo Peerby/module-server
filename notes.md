@@ -45,21 +45,21 @@ general
 ============
 
 - there a two types of requiring modules:
-  - `require`: all occurences of require() are replaced by Closure compiler with
+  - synchronous / `require`: all occurences of require() are replaced by Closure compiler with
     references to the modules. there's no IO, because the dependency is guaranteed to
     be available because it was either already present or it came along with the same
     HTTP request. All `require` dependencies of a module are available to the module
     when it is run.
-  - `ModuleServer('url')`: if you want to postpone loading a module because you don't
+  - asynchronous / `ModuleServer('url')`: if you want to postpone loading a module because you don't
     need it immediately, you fetch it via the module loader that is present on the
     client. 
 - the effect of these two types of module loading is that it creates a convention for
   the developer to separate two types of 'dependencies':
   - dependencies that are necessary for the module to function
-  - other modules
+  - other modules that are needed later
 - in the latter case, module A depends on B from an UX perspective (even though there's
   decoupling in the code). So, a dependency is the sense of, if you click the 'chat' 
-  button, an event is triggered on the routing and the 'chat view' is loaded.
+  button, an event is triggered on the routing and the 'chat module' is loaded.
 
 
 TODO
