@@ -13,7 +13,7 @@ var httpServer = require('../http-server')({
 var app = express();
 app.listen(1337);
 
-console.log('Module server running at http://127.0.0.1:1337/');
+console.log('Module server running at http://127.0.0.1:1337/ms/');
 
 //to do: use express.static?
 app.get('/', function (req, res, next) {
