@@ -67,6 +67,10 @@ TODO
 
 - test if module-compiler/module-server can deal with `require.js` dependencies
 
+- change demo so that it's more clear how module-server works
+
+- try to implement module-server in existing SPA code base
+
 - source maps are broken
 
 - serve a minified module-client
