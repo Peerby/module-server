@@ -76,13 +76,6 @@ TODO
 
 - serve a minified module-client
 
-- write express integration
-  √ better error handling
-  √ better configurable
-  √ clean up code
-  √ supports url prefixing for namespacing module-server
-  - use in demo/ (move /demo-server.js to demo/)
-
 - add support for `module.exports` (now only `exports`)
 
 - create script that watches for file changes and sequentially:
