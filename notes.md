@@ -65,6 +65,8 @@ general
 TODO
 ==========
 
+- test if module-compiler/module-server can deal with `require.js` dependencies
+
 - source maps are broken
 
 - serve a minified module-client
