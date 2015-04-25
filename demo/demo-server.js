@@ -7,7 +7,7 @@ var httpServer = require('../http-server')({
   sourceDir: '/demo/client/js',
   buildDir: '/demo/client/build',
   moduleGraphFile: '/demo/client/js/module-graph.json',
-  // baseUrl: '/ms'
+  baseUrl: '/ms'
 });
 
 var app = express();
