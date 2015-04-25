@@ -8,11 +8,11 @@
 
 <button onclick="loadMoreCode()">Load more code</button>
 
-<script src="../third-party/LABjs/LAB.src.js"></script>
-<script src="../module-client.js"></script>
+<script src="ms/third-party/LABjs/LAB.src.js"></script>
+<script src="ms/module-client.js"></script>
 
 <script>
-window.loadModule = ModuleServer('http://127.0.0.1:1337/');
+window.loadModule = ModuleServer('http://127.0.0.1:1337/ms/');
 root = {};
 loadModule('module/foo', function() {
   log('loaded module/foo');

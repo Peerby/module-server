@@ -1,6 +1,3 @@
-////////////////////
-//code that uses http-server
-
 var express = require('express');
 var fs = require('fs');
 var httpServer = require('../http-server')({

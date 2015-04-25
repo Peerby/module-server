@@ -34,7 +34,20 @@ module.exports = function httpServer(options) {
   var moduleServer;
 
   options = options || {};
+
+  //check required options
+  if (!options.sourceDir) {
+    throw new Error('missing `sourceDir`');
+  }
+  if (!options.buildDir) {
+    throw new Error('missing `buildDir`');
+  }
+  if (!options.moduleGraphFile) {
+    throw new Error('missing `moduleGraphFile`');
+  }
+
   options.baseUrl = options.baseUrl || '';
+  //format baseUrl
   if (options.baseUrl) {
     if(options.baseUrl[0] !== '/') { //start with /
       options.baseUrl = '/' + options.baseUrl;
@@ -43,11 +56,12 @@ module.exports = function httpServer(options) {
       options.baseUrl = options.baseUrl.slice(0, -1);
     }
   }
+
   var config = {
     fs: {
-      sourceDir: __dirname + (options.sourceDir || '/test/fixtures/sample-module'),
-      buildDir: __dirname + (options.buildDir || '/test/fixtures/build'),
-      moduleGraphFile: __dirname + (options.moduleGraphFile || '/test/fixtures/sample-module/module-graph.json'),
+      sourceDir: __dirname + options.sourceDir,
+      buildDir: __dirname + options.buildDir,
+      moduleGraphFile: __dirname + options.moduleGraphFile,
     },
     urls: {
       base: options.baseUrl,

@@ -19,7 +19,7 @@ start
 
 - the web server serves all files the client needs. Run the following in the root of the project:
 
-  `node demo/demo-server`
+  `DEBUG=module-server node demo/demo-server`
 
 - in the browser, open the page:
 
