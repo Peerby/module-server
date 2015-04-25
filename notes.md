@@ -67,13 +67,6 @@ TODO
 
 - source maps are broken
 
-- to make this project a drop-in solution, parts of demo-server should be included 
-  in a library, resulting in two files with different responsibilities:
-  - module-server.js: general serving of module-server files, that would be required 
-    in each project: js, js maps, module-client.js, LABjs (existing module-server.js
-    should be renamed to module-loader.js)
-  - demo-server.js: app specific serving of files, demo.html
-
 - serve a minified module-client
 
 - add support for `module.exports` (now only `exports`)
