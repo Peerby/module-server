@@ -1,8 +1,9 @@
 goal
 -----------
 
-- show how module-server works in practice
-- figure out if/how parts of `/demo-server.js` needs to abstracted into the library
+- make it more visual, apparent how it works
+√ show how module-server works in practice
+√ figure out if/how parts of `/demo-server.js` needs to abstracted into the library
 
 start
 -----------
