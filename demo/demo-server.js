@@ -13,8 +13,8 @@ app.listen(1337);
 console.log('Module server running at http://127.0.0.1:1337/ms/');
 
 //to do: use express.static?
-app.get('/', function (req, res, next) {
-  fs.readFile(__dirname + '/client/index.html', 'utf8', function (err, file) {
+app.get('/page.html', function (req, res, next) {
+  fs.readFile(__dirname + '/client/page.html', 'utf8', function (err, file) {
     if(err) {
       return next(err);
     }

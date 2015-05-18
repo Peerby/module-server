@@ -1,1 +1,0 @@
-exports = 'sectionA has something to say';
